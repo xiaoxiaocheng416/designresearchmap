@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hunter's Point South Park</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Base styles */
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Arial', sans-serif;
+            color: #333;
+            background-color: #f8f8f8;
+        }
+        
+        /* Page container */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        /* Header styles */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 0;
+            border-bottom: 1px solid #eee;
+            margin-bottom: 30px;
+        }
+        
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            color: #666;
+            text-decoration: none;
+            font-size: 16px;
+            transition: color 0.3s;
+        }
+        
+        .back-btn:hover {
+            color: #4CAF50;
+        }
+        
+        .back-btn i {
+            margin-right: 8px;
+        }
+        
+        /* Gallery slideshow */
+        .gallery {
+            width: 80%;
+            max-width: 800px;
+            height: auto;
+            margin: 0 auto 40px;
+            position: relative;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+        }
+        
+        .slideshow {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+        
+        .slide {
+            position: relative;
+            width: 100%;
+            height: auto;
+            display: none;
+        }
+        
+        .slide.active {
+            display: block;
+        }
+        
+        .slide img {
+            width: 100%;
+            height: auto;
+            display: block;
+            object-fit: contain;
+        }
+        
+        .slide-controls {
+            position: absolute;
+            bottom: 20px;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            z-index: 10;
+        }
+        
+        .slide-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background-color: rgba(255, 255, 255, 0.5);
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        
+        .slide-dot.active {
+            background-color: #4CAF50;
+            transform: scale(1.2);
+        }
+        
+        .slide-arrow {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 40px;
+            height: 40px;
+            background-color: rgba(0, 0, 0, 0.3);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            z-index: 10;
+            transition: background-color 0.3s ease;
+        }
+        
+        .slide-arrow:hover {
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+        
+        .slide-prev {
+            left: 20px;
+        }
+        
+        .slide-next {
+            right: 20px;
+        }
+        
+        /* Actions section */
+        .actions {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            padding: 15px;
+        }
+        
+        .action-btn {
+            padding: 12px 24px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 30px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+        }
+        
+        .action-btn:hover {
+            background-color: #388E3C;
+            transform: scale(1.05);
+        }
+        
+        .action-btn i {
+            margin-right: 8px;
+        }
+        
+        .action-btn.secondary {
+            background-color: #f0f0f0;
+            color: #666;
+        }
+        
+        .action-btn.secondary:hover {
+            background-color: #e0e0e0;
+        }
+        
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .gallery {
+                grid-template-columns: 1fr;
+                grid-template-rows: repeat(5, 250px);
+            }
+            
+            .gallery-item:first-child {
+                grid-column: span 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <a href="mapbox-3d.html#skipintro" class="back-btn">
+                <i class="fas fa-arrow-left"></i> Back to Map
+            </a>
+            <h1>Hunter's Point South Park</h1>
+        </header>
+        
+        <div class="gallery">
+            <div class="slideshow">
+                <div class="slide active">
+                    <img src="image/aeiou/1.jpg" alt="Hunter's Point South Park View">
+                </div>
+                <div class="slide">
+                    <img src="image/aeiou/2.jpg" alt="Hunter's Point South Park Detail">
+                </div>
+                <div class="slide">
+                    <img src="image/aeiou/3.jpg" alt="Hunter's Point South Park Landscape">
+                </div>
+                <div class="slide">
+                    <img src="image/aeiou/4.jpg" alt="Hunter's Point South Park Feature">
+                </div>
+                <div class="slide">
+                    <img src="image/aeiou/5.jpg" alt="Hunter's Point South Park Environment">
+                </div>
+                
+                <div class="slide-arrow slide-prev">
+                    <i class="fas fa-chevron-left"></i>
+                </div>
+                <div class="slide-arrow slide-next">
+                    <i class="fas fa-chevron-right"></i>
+                </div>
+                
+                <div class="slide-controls">
+                    <div class="slide-dot active" data-index="0"></div>
+                    <div class="slide-dot" data-index="1"></div>
+                    <div class="slide-dot" data-index="2"></div>
+                    <div class="slide-dot" data-index="3"></div>
+                    <div class="slide-dot" data-index="4"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="actions">
+            <button class="action-btn" onclick="window.open('https://maps.google.com/maps?q=40.74222,-73.96056', '_blank')">
+                <i class="fas fa-map-marker-alt"></i> View in Google Maps
+            </button>
+            <button class="action-btn secondary" onclick="window.location.href='mapbox-3d.html#skipintro'">
+                <i class="fas fa-arrow-left"></i> Return
+            </button>
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Slideshow functionality
+            const slides = document.querySelectorAll('.slide');
+            const dots = document.querySelectorAll('.slide-dot');
+            const prevBtn = document.querySelector('.slide-prev');
+            const nextBtn = document.querySelector('.slide-next');
+            let currentIndex = 0;
+            
+            // Function to change slide
+            function showSlide(index) {
+                // Hide all slides
+                slides.forEach(slide => slide.classList.remove('active'));
+                dots.forEach(dot => dot.classList.remove('active'));
+                
+                // Show the selected slide
+                slides[index].classList.add('active');
+                dots[index].classList.add('active');
+                currentIndex = index;
+            }
+            
+            // Event listeners for dots
+            dots.forEach(dot => {
+                dot.addEventListener('click', function() {
+                    const index = parseInt(this.getAttribute('data-index'));
+                    showSlide(index);
+                });
+            });
+            
+            // Event listeners for arrows
+            prevBtn.addEventListener('click', function() {
+                let index = currentIndex - 1;
+                if (index < 0) index = slides.length - 1;
+                showSlide(index);
+            });
+            
+            nextBtn.addEventListener('click', function() {
+                let index = currentIndex + 1;
+                if (index >= slides.length) index = 0;
+                showSlide(index);
+            });
+        });
+    </script>
+</body>
+</html> 

@@ -1,0 +1,2246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hunters Point 3D Interactive Map</title>
+    <script src='https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.js'></script>
+    <link href='https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.css' rel='stylesheet' />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Arial', sans-serif;
+        }
+        
+        #map {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 100%;
+        }
+        
+        #loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            color: white;
+            text-align: center;
+        }
+        
+        .spinner {
+            border: 5px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 5px solid #FF5733;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .loading-text {
+            font-size: 1.5em;
+            margin-bottom: 10px;
+        }
+        
+        .loading-subtext {
+            font-size: 1em;
+            max-width: 80%;
+            opacity: 0.8;
+        }
+        
+        /* Entry Animation Overlay */
+        #entry-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.4);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 99;
+            color: white;
+            text-align: center;
+            backdrop-filter: blur(5px);
+            transition: opacity 1s ease, visibility 1s ease;
+        }
+        
+        #entry-overlay.hidden {
+            opacity: 0;
+            visibility: hidden;
+        }
+        
+        .entry-title {
+            font-size: 5em;
+            font-weight: bold;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.6);
+            animation: fadeInDown 1.2s ease;
+        }
+        
+        .entry-subtitle {
+            font-size: 1.5em;
+            margin-bottom: 40px;
+            max-width: 80%;
+            text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.6);
+            animation: fadeInUp 1.2s ease;
+        }
+        
+        .entry-button {
+            padding: 15px 40px;
+            background-color: white;
+            color: #333;
+            border: none;
+            border-radius: 30px;
+            font-size: 1.2em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            animation: pulse 2s infinite;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+        
+        .entry-button:hover {
+            background-color: #FF5733;
+            color: white;
+            transform: scale(1.05);
+        }
+        
+        .entry-button i {
+            margin-left: 10px;
+        }
+        
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.7);
+            }
+            70% {
+                box-shadow: 0 0 0 15px rgba(255, 255, 255, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(255, 255, 255, 0);
+            }
+        }
+        
+        #info-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 300px;
+            max-height: 80vh;
+            background-color: rgba(255, 255, 255, 0.9);
+            border-radius: 10px;
+            padding: 15px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            overflow-y: auto;
+            transform: translateX(350px);
+            transition: transform 0.5s ease;
+            z-index: 10;
+            font-family: 'Arial', sans-serif;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+        
+        #info-panel.active {
+            transform: translateX(0);
+        }
+        
+        #info-panel h2 {
+            margin-top: 0;
+            color: #333;
+            border-bottom: 2px solid #FF5733;
+            padding-bottom: 10px;
+            font-size: 1.5em;
+        }
+        
+        #info-panel p {
+            line-height: 1.6;
+            color: #444;
+            margin-bottom: 15px;
+        }
+        
+        #info-panel img {
+            width: 100%;
+            border-radius: 5px;
+            margin: 10px 0;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        
+        #info-panel .close-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            color: #666;
+            transition: color 0.3s;
+        }
+        
+        #info-panel .close-btn:hover {
+            color: #FF5733;
+        }
+        
+        .info-section {
+            margin-bottom: 20px;
+        }
+        
+        .info-section h3 {
+            color: #FF5733;
+            margin-bottom: 10px;
+            font-size: 1.2em;
+        }
+        
+        .tag {
+            display: inline-block;
+            background-color: #f0f0f0;
+            padding: 3px 8px;
+            border-radius: 15px;
+            margin-right: 5px;
+            margin-bottom: 5px;
+            font-size: 0.8em;
+            color: #555;
+        }
+        
+        .tag.interview {
+            background-color: rgba(255, 87, 51, 0.2);
+            color: #FF5733;
+        }
+        
+        .tag.residence {
+            background-color: rgba(51, 102, 255, 0.2);
+            color: #3366FF;
+        }
+        
+        .tag.aeiou {
+            background-color: rgba(51, 204, 102, 0.2);
+            color: #33CC66;
+        }
+        
+        .action-btn {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            background-color: #FF5733;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 15px;
+            transition: background-color 0.3s;
+            font-weight: bold;
+        }
+        
+        .action-btn:hover {
+            background-color: #E64A2E;
+        }
+        
+        .action-btn.secondary {
+            background-color: #3366FF;
+        }
+        
+        .action-btn.secondary:hover {
+            background-color: #2A56D9;
+        }
+        
+        .marker {
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            border: 2px solid white;
+            transition: all 0.3s ease;
+            transform-origin: bottom center;
+        }
+        
+        .marker:hover {
+            transform: scale(1.2) translateY(-5px);
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.7);
+        }
+        
+        .marker-interview {
+            background-color: #FF5733;
+        }
+        
+        .marker-residence {
+            background-color: #3366FF;
+        }
+        
+        .marker-aeiou {
+            background-color: #4CAF50;
+        }
+        
+        /* 添加脉动动画 */
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(255, 87, 51, 0.7);
+            }
+            70% {
+                box-shadow: 0 0 0 10px rgba(255, 87, 51, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(255, 87, 51, 0);
+            }
+        }
+        
+        .marker-interview {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse-blue {
+            0% {
+                box-shadow: 0 0 0 0 rgba(51, 102, 255, 0.7);
+            }
+            70% {
+                box-shadow: 0 0 0 10px rgba(51, 102, 255, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(51, 102, 255, 0);
+            }
+        }
+        
+        .marker-residence {
+            animation: pulse-blue 2s infinite;
+        }
+        
+        @keyframes pulse-green {
+            0% {
+                box-shadow: 0 0 0 0 rgba(51, 204, 102, 0.7);
+            }
+            70% {
+                box-shadow: 0 0 0 10px rgba(51, 204, 102, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(51, 204, 102, 0);
+            }
+        }
+        
+        .marker-aeiou {
+            animation: pulse-green 2s infinite;
+        }
+        
+        /* 自定义弹出窗口样式 */
+        .mapboxgl-popup {
+            max-width: 250px;
+        }
+        
+        .mapboxgl-popup-content {
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            background-color: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(5px);
+        }
+        
+        .mapboxgl-popup-content h3 {
+            margin: 0 0 10px 0;
+            color: #333;
+            font-size: 1.2em;
+            border-bottom: 2px solid #FF5733;
+            padding-bottom: 5px;
+        }
+        
+        .mapboxgl-popup-content p {
+            margin: 0;
+            color: #555;
+            font-size: 0.9em;
+        }
+        
+        /* 控制面板 */
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .control-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            cursor: pointer;
+            transition: all 0.3s;
+            border: none;
+            color: #333;
+            font-size: 16px;
+        }
+        
+        .control-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+        
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            #info-panel {
+                width: 80%;
+                max-width: 300px;
+                left: 50%;
+                right: auto;
+                transform: translateX(-50%) translateY(100vh);
+            }
+            
+            #info-panel.active {
+                transform: translateX(-50%) translateY(0);
+            }
+            
+            .control-btn {
+                width: 36px;
+                height: 36px;
+                font-size: 14px;
+            }
+        }
+        
+        /* 标记点信息卡片样式 */
+        .marker-card {
+            position: absolute;
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            max-width: 300px;
+            text-align: center;
+            z-index: 10;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            font-family: 'Arial', sans-serif;
+        }
+        
+        .marker-card h2 {
+            margin-top: 0;
+            font-size: 24px;
+            color: #333;
+        }
+        
+        .marker-card p {
+            margin: 10px 0;
+            color: #666;
+        }
+        
+        .marker-card .open-btn {
+            display: block;
+            width: 80%;
+            margin: 20px auto 10px;
+            padding: 12px 0;
+            background-color: #FF5733;
+            color: white;
+            border: none;
+            border-radius: 30px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .marker-card .open-btn:hover {
+            background-color: #E64A2E;
+            transform: scale(1.05);
+        }
+        
+        .marker-card .back-link {
+            display: block;
+            margin-top: 10px;
+            color: #666;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        
+        .marker-card .back-link:hover {
+            color: #333;
+            text-decoration: underline;
+        }
+        
+        /* 遮罩层 */
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 9;
+        }
+        
+        /* 时间旅行开关样式 */
+        .time-travel-control {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 5;
+            background-color: white;
+            border-radius: 10px;
+            padding: 10px 15px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            display: flex;
+            align-items: center;
+            font-family: 'Arial', sans-serif;
+            border: 1px solid #ddd;
+            transform: translateY(0); /* 修改为固定在左上角 */
+            transition: transform 0.5s ease;
+        }
+        
+        .time-label {
+            display: none; /* 隐藏"Time Travel"文字 */
+        }
+        
+        .time-toggle {
+            position: relative;
+            width: 80px;
+            height: 34px;
+        }
+        
+        .time-toggle input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .time-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+            box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+        }
+        
+        .time-slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+            z-index: 2;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+        }
+        
+        .time-toggle input:checked + .time-slider {
+            background-color: #795548;
+        }
+        
+        .time-toggle input:checked + .time-slider:before {
+            transform: translateX(46px);
+            background-color: #ffd54f;
+        }
+        
+        .time-icon {
+            position: absolute;
+            z-index: 1;
+            font-size: 16px;
+            transition: .4s;
+        }
+        
+        .modern-icon {
+            right: 10px;
+            top: 8px;
+            color: #555;
+        }
+        
+        .historic-icon {
+            left: 10px;
+            top: 8px;
+            color: #795548;
+            opacity: 0.7;
+        }
+        
+        .time-toggle input:checked ~ .modern-icon {
+            opacity: 0.3;
+        }
+        
+        .time-toggle input:checked ~ .historic-icon {
+            opacity: 1;
+        }
+        
+        .time-info {
+            cursor: pointer;
+            margin-left: 10px;
+            color: #666;
+            background-color: #f0f0f0;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.3s;
+        }
+        
+        .time-info:hover {
+            background-color: #ddd;
+        }
+        
+        /* 历史地图样式 */
+        .sepia-filter {
+            filter: sepia(0.5) contrast(1.1) saturate(0.9);
+            transition: filter 1s ease;
+        }
+        
+        /* 历史信息卡片样式 */
+        .history-card {
+            position: absolute;
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            max-width: 400px;
+            z-index: 10;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            font-family: 'Arial', sans-serif;
+            border: 3px solid #795548;
+        }
+        
+        .history-card h2 {
+            margin-top: 0;
+            color: #795548;
+            border-bottom: 2px solid #795548;
+            padding-bottom: 10px;
+            font-size: 24px;
+        }
+        
+        .history-card .close-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: none;
+            border: none;
+            font-size: 20px;
+            color: #666;
+            cursor: pointer;
+        }
+        
+        .image-comparison {
+            display: flex;
+            gap: 10px;
+            margin: 15px 0;
+        }
+        
+        .image-container {
+            flex: 1;
+            position: relative;
+        }
+        
+        .image-container img {
+            width: 100%;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+        }
+        
+        .image-label {
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            background-color: rgba(0, 0, 0, 0.6);
+            color: white;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+        }
+        
+        .history-description {
+            color: #555;
+            line-height: 1.5;
+            margin-top: 15px;
+        }
+        
+        .history-details {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+        }
+        
+        .history-details p {
+            margin: 5px 0;
+            color: #666;
+            font-size: 14px;
+        }
+        
+        /* 历史版本标记点样式 */
+        .marker-history {
+            background-color: #795548;
+        }
+        
+        .year-indicator {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(255, 255, 255, 0.9);
+            color: #333;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-weight: bold;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            z-index: 5;
+            opacity: 0;
+            transition: opacity 0.5s;
+        }
+        
+        .year-indicator.visible {
+            opacity: 1;
+        }
+        
+        .year-indicator span {
+            color: #795548;
+        }
+        
+        /* 添加额外的CSS样式 */
+        const additionalStyles = document.createElement('style');
+        additionalStyles.textContent = `
+            .history-card {
+                max-width: 500px;
+                max-height: 85vh;
+                overflow-y: auto;
+            }
+            
+            .additional-images {
+                margin-top: 20px;
+                border-top: 1px solid #eee;
+                padding-top: 15px;
+            }
+            
+            .additional-images h3 {
+                color: #795548;
+                margin-bottom: 15px;
+                font-size: 18px;
+            }
+            
+            .image-gallery {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 10px;
+                justify-content: center;
+            }
+            
+            .gallery-item {
+                flex-basis: calc(50% - 10px);
+            }
+            
+            .gallery-item img {
+                width: 100%;
+                border-radius: 5px;
+                border: 1px solid #ddd;
+                transition: transform 0.3s ease;
+            }
+            
+            .gallery-item img:hover {
+                transform: scale(1.02);
+                box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            }
+        `;
+        document.head.appendChild(additionalStyles);
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    
+    <div id="loading-overlay">
+        <div class="spinner"></div>
+        <div class="loading-text">Loading 3D Map...</div>
+        <div class="loading-subtext">Preparing detailed 3D buildings and terrain data for Hunters Point, New York City</div>
+    </div>
+    
+    <!-- Entry Animation Overlay -->
+    <div id="entry-overlay" class="hidden">
+        <h1 class="entry-title">Explore Hunters Point</h1>
+        <p class="entry-subtitle">Browse the map and click on the red dots to find out more</p>
+        <button id="explore-button" class="entry-button">
+            Explore <i class="fas fa-arrow-right"></i>
+        </button>
+    </div>
+    
+    <div id="info-panel">
+        <button id="close-info" class="close-btn">&times;</button>
+        <h2>Welcome to Hunters Point 3D Map</h2>
+        <p>Loading information...</p>
+    </div>
+    
+    <div id="controls">
+        <button class="control-btn" id="reset-view" title="Reset View">
+            <i class="fas fa-home"></i>
+        </button>
+        <button class="control-btn" id="toggle-buildings" title="Toggle Buildings">
+            <i class="fas fa-building"></i>
+        </button>
+        <button class="control-btn" id="toggle-terrain" title="Toggle Terrain">
+            <i class="fas fa-mountain"></i>
+        </button>
+        <button class="control-btn" id="toggle-paths" title="Toggle Paths">
+            <i class="fas fa-route"></i>
+        </button>
+    </div>
+    
+    <!-- 时间旅行控制器 -->
+    <div class="time-travel-control">
+        <div class="time-label">Time Travel</div>
+        <label class="time-toggle">
+            <input type="checkbox" id="time-toggle">
+            <span class="time-slider"></span>
+            <i class="time-icon modern-icon fas fa-city"></i>
+            <i class="time-icon historic-icon fas fa-landmark"></i>
+        </label>
+        <div class="time-info" id="time-info">
+            <i class="fas fa-info"></i>
+        </div>
+    </div>
+    
+    <!-- 年份指示器 -->
+    <div class="year-indicator" id="year-indicator">
+        Now viewing: <span>1950s</span> Hunters Point
+    </div>
+    
+    <script>
+        // 设置Mapbox访问令牌
+        // 使用用户提供的令牌
+        let mapboxToken = 'pk.eyJ1Ijoid3V5OTQyIiwiYSI6ImNtOGM3dmY0eTE5eTIya29lM2M3ZGp0OGQifQ.A1smKh10z0kscrowYa7fig';
+        // 备用令牌
+        const backupToken = 'pk.eyJ1IjoiZXhhbXBsZXMiLCJhIjoiY2p0MG01MXRqMW45cjQzb2R6b2ptc3J4MSJ9.zA2W0IkI0c6KaAhJfk9bWg';
+
+        // 定义标记点数据
+        const markers = [
+            {
+                id: 'residence1',
+                type: 'residence',
+                title: 'My Home',
+                description: '用户住所位于长岛市亨特斯角社区，靠近中央大道和纽敦溪。',
+                coordinates: [-73.95694, 40.74500], // 更新为正确的坐标 (40°44'42.0"N 73°57'25.0"W)
+                image: 'https://via.placeholder.com/300x200?text=Residence',
+                details: {
+                    address: 'Hunters Point, Long Island City, NY',
+                    type: '住宅',
+                    notes: '用户的主要居住地',
+                    concerns: ['社区发展', '公共空间', '交通']
+                }
+            },
+            {
+                id: 'interview1',
+                type: 'interview',
+                title: 'JustFoodForDogs',
+                description: '在这家宠物食品店进行了社区访谈，了解当地居民与宠物相关的生活方式。',
+                coordinates: [-73.95389, 40.74417], // 更新为40°44'39"N 73°57'14"W
+                image: 'https://via.placeholder.com/300x200?text=JustFoodForDogs',
+                details: {
+                    address: 'JustFoodForDogs, Long Island City, NY',
+                    type: '采访地点',
+                    notes: '宠物食品店',
+                    concerns: ['社区服务', '宠物友好', '本地商业']
+                }
+            },
+            {
+                id: 'interview2',
+                type: 'interview',
+                title: '1QPS Apartment',
+                description: '在这座现代化公寓楼采访了一位在亨特斯角社区居住了5年的房产中介，了解该地区的房地产发展和社区变化。',
+                coordinates: [-73.94222, 40.75056], // 40°45'02"N 73°56'32"W
+                image: 'https://via.placeholder.com/300x200?text=1QPS',
+                details: {
+                    address: '1QPS, Long Island City, NY',
+                    type: '采访地点',
+                    notes: '现代化公寓楼',
+                    concerns: ['房地产发展', '社区变迁', '居住体验']
+                }
+            },
+            {
+                id: 'interview3',
+                type: 'interview',
+                title: 'Thai Restaurant',
+                description: '在这家泰国餐厅采访了一位服务员，了解餐厅与社区的互动以及当地居民的饮食文化。',
+                coordinates: [-73.95167, 40.74306], // 40°44'35"N 73°57'06"W
+                image: 'https://via.placeholder.com/300x200?text=ThaiRestaurant',
+                details: {
+                    address: 'Thai Restaurant, Long Island City, NY',
+                    type: '采访地点',
+                    notes: '泰国餐厅',
+                    concerns: ['餐饮文化', '社区互动', '本地商业']
+                }
+            },
+            {
+                id: 'aeiou1',
+                type: 'aeiou',
+                title: "Hunter's Point South Park",
+                description: '在这个滨水公园进行AEIOU观察，记录社区居民如何使用公共空间以及公园的设计如何影响人们的行为和互动。',
+                coordinates: [-73.96056, 40.74222], // 40°44'32"N 73°57'38"W
+                image: 'https://via.placeholder.com/300x200?text=HuntersPointSouthPark',
+                details: {
+                    address: "Hunter's Point South Park, Long Island City, NY",
+                    type: 'AEIOU观察地点',
+                    notes: '滨水公园',
+                    concerns: ['公共空间', '社区活动', '环境设计']
+                }
+            },
+            {
+                id: 'aeiou2',
+                type: 'aeiou',
+                title: "Gantry Plaza State Park Loading Dock",
+                description: '对这个历史地标进行了案头研究，了解其在长岛市工业历史中的重要性以及如何转变为现代公共空间。',
+                coordinates: [-73.95944, 40.74389], // 40°44'38"N 73°57'34"W
+                image: 'https://via.placeholder.com/300x200?text=GantryPlaza',
+                details: {
+                    address: "Gantry Plaza State Park, Long Island City, NY",
+                    type: 'AEIOU观察地点',
+                    notes: '历史地标',
+                    concerns: ['历史保护', '工业遗产', '公共空间改造']
+                }
+            }
+        ];
+
+        // 定义历史标记点数据
+        const historicalMarkers = [
+            {
+                id: 'history1',
+                type: 'history',
+                title: "Long Island Railroad (1940)",
+                description: 'Long Island City, Queens: The Long Island Railroad freight yard from 49th Avenue. Photographed by P. L. Sperr on July 27, 1940.',
+                coordinates: [-73.95111, 40.74250], // 40°44'33"N 73°57'04"W
+                modernImage: 'image/1940/1/4.jpeg', // 现代图片替换为4.jpeg
+                historicImage: 'image/1940/1/1.jpg', // 1940年历史图片1
+                additionalImages: ['image/1940/1/2.jpg', 'image/1940/1/3.jpg'], // 额外的1940年历史图片
+                details: {
+                    address: "Long Island City, Queens, NY"
+                }
+            },
+            {
+                id: 'history2',
+                type: 'history',
+                title: "Pennsylvania Railroad (1936)",
+                description: '2nd Street, west side, at 51st Avenue, showing the fenced-off property belonging to the Pennsylvania Railroad where freight cars are loaded on floats, in the East River, for trans-shipment. The 34th Street, Manhattan, Ferry, is no longer operating. In the background are Manhattan skyscrapers, with the Chrysler, The News, and Chanin Buildings grouped in the center. October 25, 1936. P. L. Sperr.',
+                coordinates: [-73.95861, 40.74278], // 40°44'34"N 73°57'31"W
+                modernImage: 'image/1940/2/1.png', // 现代图片
+                historicImage: 'image/1940/2/2.jpg', // 1936年历史图片
+                details: {
+                    address: "2nd Street at 51st Avenue, Long Island City, NY"
+                }
+            },
+            {
+                id: 'history3',
+                type: 'history',
+                title: "Vernon Boulevard (1940s)",
+                description: 'The Long Island Power Station was built in 1906 to enhance New York City\'s transportation network. It was used for power and expansion of the Long Island and Pennsylvania Railroad. It was bought by developers in 2004 for $24 million. It was converted into an apartment building in 2008, but The Powerhouse suffered huge damage from Hurricane Sandy in October, 2012. It has now been repaired.',
+                coordinates: [-73.95667, 40.74250], // 40°44'33"N 73°57'24"W
+                modernImage: 'image/1940/3/1.jpg', // 现代图片
+                historicImage: 'image/1940/3/4.jpg', // 历史图片
+                additionalImages: ['image/1940/3/2.jpg', 'image/1940/3/3.jpg'], // 额外的图片
+                details: {
+                    address: "Vernon Boulevard, Long Island City, NY"
+                }
+            },
+            {
+                id: 'history4',
+                type: 'history',
+                title: "Railroad Car Float (1930s)",
+                description: 'Historical image showing railroad cars being unloaded from a float boat at the Long Island City waterfront.',
+                coordinates: [-73.95861, 40.74472], // 40°44'41"N 73°57'31"W
+                modernImage: 'image/4/2.jpg', // 现代图片
+                historicImage: 'image/4/1.jpg', // 历史图片
+                details: {
+                    address: "Long Island City Waterfront, Queens, NY"
+                }
+            }
+        ];
+
+        // 定义当前模式
+        let isHistoricalMode = false;
+
+        // 令牌错误处理函数
+        function handleTokenError() {
+            console.log('Trying backup token...');
+            mapboxToken = backupToken;
+            
+            // 重新创建地图
+            map.remove();
+            initMap();
+        }
+
+        // 初始化地图函数
+        function initMap() {
+            mapboxgl.accessToken = mapboxToken;
+            
+            // 添加额外的CSS样式
+            const additionalStyles = document.createElement('style');
+            additionalStyles.textContent = `
+                .history-card {
+                    max-width: 500px;
+                    max-height: 85vh;
+                    overflow-y: auto;
+                }
+                
+                .additional-images {
+                    margin-top: 20px;
+                    border-top: 1px solid #eee;
+                    padding-top: 15px;
+                }
+                
+                .additional-images h3 {
+                    color: #795548;
+                    margin-bottom: 15px;
+                    font-size: 18px;
+                }
+                
+                .image-gallery {
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 10px;
+                    justify-content: center;
+                }
+                
+                .gallery-item {
+                    flex-basis: calc(50% - 10px);
+                }
+                
+                .gallery-item img {
+                    width: 100%;
+                    border-radius: 5px;
+                    border: 1px solid #ddd;
+                    transition: transform 0.3s ease;
+                }
+                
+                .gallery-item img:hover {
+                    transform: scale(1.02);
+                    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+                }
+            `;
+            document.head.appendChild(additionalStyles);
+            
+            window.map = new mapboxgl.Map({
+                container: 'map',
+                style: 'mapbox://styles/mapbox/satellite-streets-v12', // 使用卫星+街道混合样式
+                center: [-73.9575, 40.7425], // Hunters Point, New York City
+                zoom: 15.5,
+                pitch: 60, // 增加初始倾斜角度以更好地展示3D效果
+                bearing: -30,
+                antialias: true,
+                attributionControl: false,
+                minZoom: 12, // 限制最小缩放级别
+                maxZoom: 19, // 限制最大缩放级别
+                maxPitch: 85, // 限制最大倾斜角度
+                renderWorldCopies: false, // 禁用世界副本渲染以提高性能
+                failIfMajorPerformanceCaveat: false, // 即使在低性能设备上也尝试加载
+                preserveDrawingBuffer: false, // 提高性能
+                localIdeographFontFamily: "'Noto Sans', 'Noto Sans CJK SC', sans-serif" // 使用本地字体
+            });
+            
+            // 移除导航控制（不添加导航控制）
+            /* 删除以下代码
+            const nav = new mapboxgl.NavigationControl({
+                showCompass: true,
+                showZoom: true,
+                visualizePitch: true
+            });
+            map.addControl(nav, 'top-left');
+            */
+            
+            // 添加全屏控制
+            map.addControl(new mapboxgl.FullscreenControl(), 'top-right');
+
+            // 添加控制按钮功能
+            document.getElementById('reset-view').addEventListener('click', () => {
+                map.flyTo({
+                    center: [-73.9575, 40.7425],
+                    zoom: 15,
+                    pitch: 45,
+                    bearing: -30,
+                    duration: 1500
+                });
+            });
+
+            document.getElementById('toggle-buildings').addEventListener('click', () => {
+                const visibility = map.getLayoutProperty('3d-buildings', 'visibility');
+                if (visibility === 'visible' || visibility === undefined) {
+                    map.setLayoutProperty('3d-buildings', 'visibility', 'none');
+                    map.setLayoutProperty('building-outlines', 'visibility', 'none');
+                    document.getElementById('toggle-buildings').style.backgroundColor = '#f0f0f0';
+                } else {
+                    map.setLayoutProperty('3d-buildings', 'visibility', 'visible');
+                    map.setLayoutProperty('building-outlines', 'visibility', 'visible');
+                    document.getElementById('toggle-buildings').style.backgroundColor = 'white';
+                }
+            });
+
+            document.getElementById('toggle-terrain').addEventListener('click', () => {
+                const terrain = map.getTerrain();
+                if (terrain && terrain.source) {
+                    map.setTerrain(null);
+                    document.getElementById('toggle-terrain').style.backgroundColor = '#f0f0f0';
+                } else {
+                    map.setTerrain({ 'source': 'mapbox-dem', 'exaggeration': 1.5 });
+                    document.getElementById('toggle-terrain').style.backgroundColor = 'white';
+                }
+            });
+
+            document.getElementById('toggle-paths').addEventListener('click', () => {
+                const visibility = map.getLayoutProperty('route', 'visibility');
+                if (visibility === 'visible' || visibility === undefined) {
+                    map.setLayoutProperty('route', 'visibility', 'none');
+                    document.getElementById('toggle-paths').style.backgroundColor = '#f0f0f0';
+                } else {
+                    map.setLayoutProperty('route', 'visibility', 'visible');
+                    document.getElementById('toggle-paths').style.backgroundColor = 'white';
+                }
+            });
+
+            // 添加标记点和路径
+            map.on('load', function () {
+                // 隐藏加载界面
+                document.getElementById('loading-overlay').style.display = 'none';
+                
+                // 显示入场动画
+                showEntryAnimation();
+                
+                // 隐藏欢迎面板
+                document.getElementById('info-panel').style.display = 'none';
+                
+                // 添加3D地形
+                map.addSource('mapbox-dem', {
+                    'type': 'raster-dem',
+                    'url': 'mapbox://mapbox.mapbox-terrain-dem-v1',
+                    'tileSize': 512,
+                    'maxzoom': 14
+                });
+                map.setTerrain({ 'source': 'mapbox-dem', 'exaggeration': 1.5 });
+                
+                // 添加天空层
+                map.addLayer({
+                    'id': 'sky',
+                    'type': 'sky',
+                    'paint': {
+                        'sky-type': 'atmosphere',
+                        'sky-atmosphere-sun': [0.0, 0.0],
+                        'sky-atmosphere-sun-intensity': 15,
+                        'sky-atmosphere-halo-color': 'rgba(255, 255, 255, 0.5)',
+                        'sky-atmosphere-color': 'rgba(186, 210, 235, 1.0)',
+                        'sky-opacity': 0.8
+                    }
+                });
+                
+                // 添加云朵效果
+                addClouds();
+
+                // 添加增强的3D建筑层
+                map.addLayer({
+                    'id': '3d-buildings',
+                    'source': 'composite',
+                    'source-layer': 'building',
+                    'filter': ['==', 'extrude', 'true'],
+                    'type': 'fill-extrusion',
+                    'minzoom': 14, // 降低最小缩放级别，使建筑物在更远处可见
+                    'paint': {
+                        // 使用更复杂的颜色插值，根据建筑高度和用途
+                        'fill-extrusion-color': [
+                            'interpolate',
+                            ['linear'],
+                            ['get', 'height'],
+                            0, '#e6e6e6',
+                            10, '#e0e0e0',
+                            20, '#d9d9d9',
+                            50, '#cccccc',
+                            100, '#b8b8b8',
+                            200, '#999999'
+                        ],
+                        // 使用实际建筑高度
+                        'fill-extrusion-height': ['get', 'height'],
+                        'fill-extrusion-base': ['get', 'min_height'],
+                        // 添加更多细节
+                        'fill-extrusion-opacity': 0.8,
+                        'fill-extrusion-vertical-gradient': true
+                    }
+                });
+
+                // 添加建筑物轮廓
+                map.addLayer({
+                    'id': 'building-outlines',
+                    'source': 'composite',
+                    'source-layer': 'building',
+                    'filter': ['==', 'extrude', 'true'],
+                    'type': 'line',
+                    'minzoom': 14,
+                    'paint': {
+                        'line-color': '#ffffff',
+                        'line-width': 1,
+                        'line-opacity': 0.7
+                    }
+                });
+                
+                // 添加公园和绿地
+                map.addLayer({
+                    'id': 'parks',
+                    'type': 'fill',
+                    'source': 'composite',
+                    'source-layer': 'landuse',
+                    'filter': [
+                        'match',
+                        ['get', 'class'],
+                        ['park', 'garden', 'grass', 'wood', 'forest', 'cemetery'],
+                        true,
+                        false
+                    ],
+                    'paint': {
+                        'fill-color': '#a1c371',
+                        'fill-opacity': 0.7
+                    }
+                });
+                
+                // 添加树木点
+                map.addLayer({
+                    'id': 'trees',
+                    'type': 'circle',
+                    'source': 'composite',
+                    'source-layer': 'landuse',
+                    'filter': [
+                        'match',
+                        ['get', 'class'],
+                        ['park', 'garden', 'wood', 'forest'],
+                        true,
+                        false
+                    ],
+                    'paint': {
+                        'circle-radius': [
+                            'interpolate',
+                            ['linear'],
+                            ['zoom'],
+                            14, 1,
+                            16, 2,
+                            18, 3
+                        ],
+                        'circle-color': '#5a8a3f',
+                        'circle-opacity': 0.7
+                    }
+                });
+                
+                // 添加水域
+                map.addLayer({
+                    'id': 'water',
+                    'type': 'fill',
+                    'source': 'composite',
+                    'source-layer': 'water',
+                    'paint': {
+                        'fill-color': '#a0c8e0',
+                        'fill-opacity': 0.8
+                    }
+                });
+                
+                // 创建路径数据
+                // 定义按顺序访问的路径：Home -> Gantry Plaza -> Hunter's Point South Park -> JustFoodForDogs -> Thai Restaurant -> 1QPS
+                const routeOrder = ['residence1', 'aeiou2', 'aeiou1', 'interview1', 'interview3', 'interview2'];
+                const routeCoordinates = [];
+                
+                // 按指定顺序获取坐标
+                routeOrder.forEach(id => {
+                    const marker = markers.find(m => m.id === id);
+                    if (marker) {
+                        routeCoordinates.push(marker.coordinates);
+                    }
+                });
+                
+                // 添加路径源
+                map.addSource('route', {
+                    'type': 'geojson',
+                    'data': {
+                        'type': 'Feature',
+                        'properties': {},
+                        'geometry': {
+                            'type': 'LineString',
+                            'coordinates': routeCoordinates
+                        }
+                    }
+                });
+
+                // 添加增强的路径线
+                map.addLayer({
+                    'id': 'route',
+                    'type': 'line',
+                    'source': 'route',
+                    'layout': {
+                        'line-join': 'round',
+                        'line-cap': 'round',
+                        'visibility': 'visible' // 默认显示路线
+                    },
+                    'paint': {
+                        'line-color': '#FF5733',
+                        'line-width': 4,
+                        'line-opacity': 0.8,
+                        'line-dasharray': [1, 1],
+                        // 添加发光效果
+                        'line-blur': 1
+                    }
+                });
+                
+                // 添加路线箭头指示方向
+                map.addLayer({
+                    'id': 'route-arrows',
+                    'type': 'symbol',
+                    'source': 'route',
+                    'layout': {
+                        'symbol-placement': 'line',
+                        'text-field': '▶',
+                        'text-size': 12,
+                        'text-keep-upright': true,
+                        'symbol-spacing': 120,
+                        'text-offset': [0, 0],
+                        'text-rotation-alignment': 'map',
+                        'text-allow-overlap': false,
+                        'visibility': 'visible'
+                    },
+                    'paint': {
+                        'text-color': '#FF5733',
+                        'text-halo-color': 'rgba(255, 255, 255, 0.8)',
+                        'text-halo-width': 2
+                    }
+                });
+                
+                // 设置路径按钮为激活状态
+                document.getElementById('toggle-paths').style.backgroundColor = 'white';
+
+                // 添加标记点
+                addMarkers();
+
+                // 添加信息面板关闭按钮事件
+                document.getElementById('close-info').addEventListener('click', () => {
+                    document.getElementById('info-panel').classList.remove('active');
+                });
+
+                // 添加3D树木模型
+                add3DTrees();
+
+                // 显示时间旅行控制器
+                setTimeout(() => {
+                    document.querySelector('.time-travel-control').classList.add('visible');
+                }, 500); // 减少显示延迟
+                
+                // 添加时间旅行切换事件监听
+                document.getElementById('time-toggle').addEventListener('change', function(e) {
+                    toggleHistoricalMode(this.checked);
+                });
+                
+                // 添加时间信息按钮事件
+                document.getElementById('time-info').addEventListener('click', showTimeInfo);
+            });
+
+            // 添加错误处理
+            map.on('error', function(e) {
+                console.error('Mapbox error:', e);
+                
+                // 检查是否是令牌错误
+                if (e.error && (e.error.message.includes('access token') || e.error.message.includes('401'))) {
+                    if (mapboxToken !== backupToken) {
+                        handleTokenError();
+                        return;
+                    }
+                }
+                
+                document.getElementById('loading-overlay').innerHTML = `
+                    <div class="loading-text">Error loading map</div>
+                    <div class="loading-subtext">Please refresh the page and try again. Error: ${e.error ? e.error.message : 'Unknown error'}</div>
+                    <button class="action-btn" onclick="location.reload()">Refresh Page</button>
+                `;
+            });
+
+            // 如果10秒后地图仍未加载完成，提供刷新选项
+            setTimeout(function() {
+                if (document.getElementById('loading-overlay').style.display !== 'none') {
+                    document.getElementById('loading-overlay').innerHTML += `
+                        <div class="loading-subtext" style="margin-top: 20px;">Loading is taking longer than expected.</div>
+                        <button class="action-btn" onclick="location.reload()" style="margin-top: 15px;">Refresh Page</button>
+                        <button class="action-btn secondary" onclick="trySimpleMap()" style="margin-top: 10px;">Try Simple Version</button>
+                    `;
+                }
+            }, 10000);
+        }
+
+        // 尝试简单版本的地图
+        function trySimpleMap() {
+            document.getElementById('loading-overlay').style.display = 'none';
+            
+            mapboxgl.accessToken = mapboxToken;
+            
+            // 移除现有地图
+            if (window.map) {
+                window.map.remove();
+            }
+            
+            // 创建简单版本的地图
+            window.map = new mapboxgl.Map({
+                container: 'map',
+                style: 'mapbox://styles/mapbox/streets-v11', // 使用更简单的样式
+                center: [-73.9575, 40.7425],
+                zoom: 15,
+                pitch: 0, // 无倾斜
+                bearing: 0,
+                antialias: false, // 禁用抗锯齿
+                attributionControl: false
+            });
+            
+            // 添加简单的标记点
+            markers.forEach(marker => {
+                new mapboxgl.Marker({
+                    color: marker.type === 'interview' ? '#FF5733' : '#3366FF'
+                })
+                .setLngLat(marker.coordinates)
+                .setPopup(new mapboxgl.Popup().setHTML(`<h3>${marker.title}</h3><p>${marker.description}</p>`))
+                .addTo(map);
+            });
+            
+            // 显示简单版本的欢迎信息
+            const infoPanel = document.getElementById('info-panel');
+            infoPanel.innerHTML = `
+                <button id="close-info" class="close-btn">&times;</button>
+                <h2>Simple Map Mode</h2>
+                <p>You are viewing a simplified version of the map with basic functionality.</p>
+                <button class="action-btn" onclick="location.reload()">Try Full Version Again</button>
+            `;
+            infoPanel.classList.add('active');
+            
+            document.getElementById('close-info').addEventListener('click', () => {
+                infoPanel.classList.remove('active');
+            });
+        }
+
+        // 初始化地图
+        initMap();
+
+        // 显示信息面板
+        function showInfoPanel(marker) {
+            const infoPanel = document.getElementById('info-panel');
+            let content = `
+                <button id="close-info" class="close-btn">&times;</button>
+                <h2>${marker.title}</h2>
+                <div class="tags">
+                    <span class="tag ${marker.type}">${marker.type === 'residence' ? '住所' : marker.type.charAt(0).toUpperCase() + marker.type.slice(1)}</span>
+            `;
+            
+            // 添加标签
+            if (marker.details.topics) {
+                marker.details.topics.forEach(topic => {
+                    content += `<span class="tag">${topic}</span>`;
+                });
+            } else if (marker.details.concerns) {
+                marker.details.concerns.forEach(concern => {
+                    content += `<span class="tag">${concern}</span>`;
+                });
+            }
+            
+            content += `</div>
+                <img src="${marker.image}" alt="${marker.title}">
+                <p>${marker.description}</p>
+                <div class="info-section">
+                    <h3>Details</h3>
+                    <ul>
+            `;
+            
+            // 添加详细信息
+            Object.keys(marker.details).forEach(key => {
+                if (Array.isArray(marker.details[key])) {
+                    return; // 跳过已经作为标签显示的数组
+                }
+                const formattedKey = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+                content += `<li><strong>${formattedKey}:</strong> ${marker.details[key]}</li>`;
+            });
+            
+            content += `
+                    </ul>
+                </div>
+                <button class="action-btn" onclick="flyToLocation([${marker.coordinates}])">Fly to Location</button>
+                <button class="action-btn secondary" onclick="showStreetView([${marker.coordinates}])">View Street Level</button>
+            `;
+            
+            infoPanel.innerHTML = content;
+            infoPanel.classList.add('active');
+            
+            // 重新添加关闭按钮事件
+            document.getElementById('close-info').addEventListener('click', () => {
+                infoPanel.classList.remove('active');
+            });
+        }
+
+        // 飞行到位置
+        function flyToLocation(coordinates) {
+            map.flyTo({
+                center: coordinates,
+                zoom: 18,
+                pitch: 70,
+                bearing: Math.random() * 360,
+                duration: 2000
+            });
+        }
+
+        // 显示街景视图（模拟功能）
+        function showStreetView(coordinates) {
+            alert(`Street view would show at coordinates: ${coordinates}. This is a placeholder for actual street view integration.`);
+        }
+
+        // 显示欢迎信息
+        function showWelcomeMessage() {
+            const infoPanel = document.getElementById('info-panel');
+            infoPanel.innerHTML = `
+                <button id="close-info" class="close-btn">&times;</button>
+                <h2>Welcome to Hunters Point 3D Map</h2>
+                <p>This interactive 3D map shows key locations from our community research in Hunters Point, New York City.</p>
+                <div class="info-section">
+                    <h3>Map Features</h3>
+                    <ul>
+                        <li>Click on markers to view detailed information</li>
+                        <li>Red markers: Interview locations</li>
+                        <li>Blue markers: Participant residences</li>
+                        <li>Green markers: AEIOU observation points</li>
+                        <li>The orange line shows my research path through the neighborhood</li>
+                    </ul>
+                </div>
+                <div class="info-section">
+                    <h3>My Research Path</h3>
+                    <p>The highlighted route shows my research journey starting from my home, visiting Gantry Plaza State Park, Hunter's Point South Park, JustFoodForDogs, the Thai Restaurant, and ending at 1QPS Apartment.</p>
+                </div>
+                <div class="info-section">
+                    <h3>Navigation Tips</h3>
+                    <ul>
+                        <li>Rotate: Right-click + drag</li>
+                        <li>Tilt: Right-click + drag up/down</li>
+                        <li>Zoom: Scroll wheel</li>
+                        <li>Pan: Left-click + drag</li>
+                    </ul>
+                </div>
+                <button class="action-btn" onclick="skipIntro()">Explore Map Now</button>
+            `;
+            infoPanel.classList.add('active');
+            
+            // 重新添加关闭按钮事件
+            document.getElementById('close-info').addEventListener('click', () => {
+                infoPanel.classList.remove('active');
+            });
+        }
+
+        // 简化的入场动画
+        function showEntryAnimation() {
+            // 执行平滑的相机动画
+            map.flyTo({
+                center: [-73.9575, 40.7425],
+                zoom: 15.5,
+                pitch: 60,
+                bearing: -30,
+                duration: 2000,
+                essential: true
+            });
+            
+            // 显示欢迎信息面板
+            setTimeout(function() {
+                showWelcomeMessage();
+                
+                // 显示URL锚点处理
+                handleUrlHash();
+            }, 2000);
+        }
+        
+        // 处理URL锚点
+        function handleUrlHash() {
+            if (window.location.hash === '#skipintro') {
+                skipIntro();
+            }
+        }
+        
+        // 跳过介绍
+        function skipIntro() {
+            const infoPanel = document.getElementById('info-panel');
+            infoPanel.classList.remove('active');
+        }
+
+        // 添加标记点到地图
+        function addMarkers() {
+            // 清除现有标记点
+            document.querySelectorAll('.marker-element').forEach(el => el.remove());
+            
+            // 遍历标记点数据
+            markers.forEach(marker => {
+                // 创建标记点元素
+                const el = document.createElement('div');
+                el.className = `marker marker-${marker.type}`;
+                
+                // 创建标记点
+                const markerObj = new mapboxgl.Marker({
+                    element: el,
+                    anchor: 'bottom'
+                })
+                .setLngLat(marker.coordinates)
+                .addTo(map);
+                
+                // 添加点击事件
+                el.addEventListener('click', () => {
+                    showMarkerCard(marker);
+                });
+            });
+        }
+        
+        // 显示标记点信息卡片
+        function showMarkerCard(marker) {
+            // 移除现有卡片和遮罩
+            removeMarkerCard();
+            
+            // 创建遮罩层
+            const overlay = document.createElement('div');
+            overlay.className = 'overlay';
+            document.body.appendChild(overlay);
+            
+            // 创建信息卡片
+            const card = document.createElement('div');
+            card.className = 'marker-card';
+            card.innerHTML = `
+                <h2>${marker.title}</h2>
+                <p>${marker.details.address}</p>
+                <button class="open-btn">OPEN</button>
+                <a href="#" class="back-link">Back to map</a>
+            `;
+            document.body.appendChild(card);
+            
+            // 添加Open按钮点击事件
+            card.querySelector('.open-btn').addEventListener('click', () => {
+                // 创建详情页URL
+                let detailPageUrl;
+                if (marker.id === 'interview1') {
+                    detailPageUrl = 'justfoodfordogdetail.html';
+                } else if (marker.id === 'interview2') {
+                    detailPageUrl = '1qpsdetail.html';
+                } else if (marker.id === 'interview3') {
+                    detailPageUrl = 'thairestaurantdetail.html';
+                } else if (marker.id === 'aeiou1') {
+                    detailPageUrl = 'hunterspointsouthparkdetail.html';
+                } else if (marker.id === 'aeiou2') {
+                    detailPageUrl = 'gantryplazadetail.html';
+                } else {
+                    detailPageUrl = `detail.html?id=${marker.id}`;
+                }
+                // 打开详情页
+                window.open(detailPageUrl, '_blank');
+            });
+            
+            // 添加Back to map链接点击事件
+            card.querySelector('.back-link').addEventListener('click', (e) => {
+                e.preventDefault();
+                removeMarkerCard();
+            });
+            
+            // 添加遮罩点击事件
+            overlay.addEventListener('click', () => {
+                removeMarkerCard();
+            });
+            
+            // 飞行到标记点位置
+            map.flyTo({
+                center: marker.coordinates,
+                zoom: 17,
+                pitch: 60,
+                bearing: 0,
+                duration: 1000
+            });
+        }
+        
+        // 移除标记点信息卡片
+        function removeMarkerCard() {
+            // 移除卡片
+            const card = document.querySelector('.marker-card');
+            if (card) card.remove();
+            
+            // 移除遮罩
+            const overlay = document.querySelector('.overlay');
+            if (overlay) overlay.remove();
+        }
+
+        // 添加3D树木模型
+        function add3DTrees() {
+            // 检查parks图层是否存在
+            if (!map.getLayer('parks')) {
+                console.log('Parks layer not found, trying again later');
+                setTimeout(add3DTrees, 1000);
+                return;
+            }
+            
+            // 在公园和绿地区域添加随机树木
+            const parkFeatures = map.queryRenderedFeatures({ layers: ['parks'] });
+            
+            // 创建树木数据源
+            const treePoints = [];
+            
+            // 如果找到了公园特征
+            if (parkFeatures.length > 0) {
+                console.log('Found park features:', parkFeatures.length);
+                
+                // 为每个公园区域添加一些树
+                parkFeatures.forEach(park => {
+                    if (park.geometry && park.geometry.type === 'Polygon' && park.geometry.coordinates && park.geometry.coordinates.length > 0) {
+                        const bounds = park.geometry.coordinates[0];
+                        const centerX = bounds.reduce((sum, coord) => sum + coord[0], 0) / bounds.length;
+                        const centerY = bounds.reduce((sum, coord) => sum + coord[1], 0) / bounds.length;
+                        
+                        // 在公园区域添加多棵树
+                        const treeCount = Math.floor(3 + Math.random() * 5); // 3-7棵树
+                        
+                        for (let i = 0; i < treeCount; i++) {
+                            // 在公园中心周围随机位置添加树
+                            const offsetX = (Math.random() - 0.5) * 0.001; // 随机偏移
+                            const offsetY = (Math.random() - 0.5) * 0.001;
+                            
+                            treePoints.push({
+                                type: 'Feature',
+                                properties: {
+                                    height: 5 + Math.random() * 15, // 5-20米高的树
+                                    type: Math.random() > 0.5 ? 'deciduous' : 'coniferous' // 随机树类型
+                                },
+                                geometry: {
+                                    type: 'Point',
+                                    coordinates: [centerX + offsetX, centerY + offsetY]
+                                }
+                            });
+                        }
+                    }
+                });
+            }
+            
+            // 添加一些固定位置的树木，确保即使没有找到公园也能显示一些树
+            const fixedTrees = [
+                [-73.9565, 40.7435],
+                [-73.9585, 40.7415],
+                [-73.9595, 40.7445],
+                [-73.9555, 40.7425],
+                [-73.9575, 40.7455]
+            ];
+            
+            fixedTrees.forEach(coords => {
+                treePoints.push({
+                    type: 'Feature',
+                    properties: {
+                        height: 8 + Math.random() * 12,
+                        type: Math.random() > 0.5 ? 'deciduous' : 'coniferous'
+                    },
+                    geometry: {
+                        type: 'Point',
+                        coordinates: coords
+                    }
+                });
+            });
+            
+            // 如果已经有树木源，先移除
+            if (map.getSource('trees-3d')) {
+                if (map.getLayer('tree-canopy')) map.removeLayer('tree-canopy');
+                if (map.getLayer('trees-3d')) map.removeLayer('trees-3d');
+                map.removeSource('trees-3d');
+            }
+            
+            // 添加树木源
+            map.addSource('trees-3d', {
+                type: 'geojson',
+                data: {
+                    type: 'FeatureCollection',
+                    features: treePoints
+                }
+            });
+            
+            // 添加树干层
+            map.addLayer({
+                id: 'trees-3d',
+                type: 'circle',
+                source: 'trees-3d',
+                paint: {
+                    'circle-radius': [
+                        'interpolate',
+                        ['linear'],
+                        ['zoom'],
+                        14, 1.5,
+                        16, 3,
+                        18, 5
+                    ],
+                    'circle-color': [
+                        'match',
+                        ['get', 'type'],
+                        'coniferous', '#1b4332',
+                        '#2d6a4f'
+                    ],
+                    'circle-opacity': 0.9,
+                    'circle-pitch-alignment': 'map'
+                }
+            });
+            
+            // 添加树冠层
+            map.addLayer({
+                id: 'tree-canopy',
+                type: 'circle',
+                source: 'trees-3d',
+                paint: {
+                    'circle-radius': [
+                        'interpolate',
+                        ['linear'],
+                        ['zoom'],
+                        14, [
+                            'interpolate',
+                            ['linear'],
+                            ['get', 'height'],
+                            5, 3,
+                            20, 6
+                        ],
+                        16, [
+                            'interpolate',
+                            ['linear'],
+                            ['get', 'height'],
+                            5, 6,
+                            20, 12
+                        ],
+                        18, [
+                            'interpolate',
+                            ['linear'],
+                            ['get', 'height'],
+                            5, 10,
+                            20, 20
+                        ]
+                    ],
+                    'circle-color': [
+                        'match',
+                        ['get', 'type'],
+                        'coniferous', '#2d6a4f',
+                        '#52b788'
+                    ],
+                    'circle-opacity': 0.7,
+                    'circle-blur': 0.5,
+                    'circle-pitch-alignment': 'map'
+                }
+            });
+            
+            console.log('Added trees:', treePoints.length);
+        }
+
+        // 在地图加载完成后添加3D树木
+        map.on('idle', function() {
+            // 只在第一次加载时添加树木
+            if (!map.getSource('trees-3d')) {
+                add3DTrees();
+            }
+        });
+
+        // 添加云朵效果
+        function addClouds() {
+            // 创建云朵数据
+            const cloudPoints = [];
+            
+            // 添加一些随机位置的云朵，减少数量
+            for (let i = 0; i < 10; i++) {
+                // 在地图中心周围随机位置添加云
+                const offsetX = (Math.random() - 0.5) * 0.15;
+                const offsetY = (Math.random() - 0.5) * 0.15;
+                const size = 150 + Math.random() * 350; // 增大云朵基础大小
+                
+                // 为每朵云创建多个点，形成云团
+                const cloudCluster = createCloudCluster([-73.9575 + offsetX, 40.7425 + offsetY], size);
+                cloudPoints.push(...cloudCluster);
+            }
+            
+            // 添加云朵源
+            map.addSource('clouds', {
+                type: 'geojson',
+                data: {
+                    type: 'FeatureCollection',
+                    features: cloudPoints
+                }
+            });
+            
+            // 添加云朵层
+            map.addLayer({
+                id: 'clouds',
+                type: 'circle',
+                source: 'clouds',
+                paint: {
+                    'circle-radius': [
+                        'interpolate',
+                        ['linear'],
+                        ['zoom'],
+                        12, ['get', 'size'],
+                        16, ['*', ['get', 'size'], 0.6]
+                    ],
+                    'circle-color': 'white',
+                    'circle-opacity': ['get', 'opacity'],
+                    'circle-blur': 2.0 // 增加模糊效果
+                }
+            });
+            
+            // 添加云朵阴影
+            map.addLayer({
+                id: 'cloud-shadows',
+                type: 'circle',
+                source: 'clouds',
+                paint: {
+                    'circle-radius': [
+                        'interpolate',
+                        ['linear'],
+                        ['zoom'],
+                        12, ['*', ['get', 'size'], 0.9],
+                        16, ['*', ['get', 'size'], 0.5]
+                    ],
+                    'circle-color': '#000',
+                    'circle-opacity': [
+                        'interpolate',
+                        ['linear'],
+                        ['get', 'opacity'],
+                        0.4, 0.01,
+                        0.8, 0.03
+                    ],
+                    'circle-blur': 2.0,
+                    'circle-translate': [400, 400]
+                }
+            });
+            
+            // 添加云朵动画
+            animateClouds();
+        }
+
+        // 创建云团
+        function createCloudCluster(centerCoord, baseSize) {
+            const cluster = [];
+            const clusterSize = 4 + Math.floor(Math.random() * 5); // 4-8个点组成一朵云，增加云朵复杂度
+            
+            for (let i = 0; i < clusterSize; i++) {
+                // 在中心点周围随机位置添加云朵组件，增加偏移范围使云朵更大
+                const offsetX = (Math.random() - 0.5) * 0.008;
+                const offsetY = (Math.random() - 0.5) * 0.008;
+                const sizeVariation = 0.7 + Math.random() * 0.6; // 70%-130%的基础大小
+                
+                cluster.push({
+                    type: 'Feature',
+                    properties: {
+                        size: baseSize * sizeVariation,
+                        opacity: 0.3 + Math.random() * 0.4, // 云朵透明度
+                        elevation: 500 + Math.random() * 1000, // 云朵高度
+                        speed: 0.00001 + Math.random() * 0.00002, // 减慢云朵移动速度
+                        group: Math.floor(baseSize) // 用于分组，同一组的云朵一起移动
+                    },
+                    geometry: {
+                        type: 'Point',
+                        coordinates: [centerCoord[0] + offsetX, centerCoord[1] + offsetY]
+                    }
+                });
+            }
+            
+            return cluster;
+        }
+
+        // 云朵动画
+        function animateClouds() {
+            let lastTime = 0;
+            
+            function animate(timestamp) {
+                // 计算时间差，使动画速度与帧率无关
+                const deltaTime = timestamp - lastTime;
+                lastTime = timestamp;
+                
+                if (deltaTime > 0 && map.getSource('clouds')) {
+                    // 更新云朵位置
+                    const cloudData = map.getSource('clouds')._data;
+                    const groups = {}; // 按组分类云朵
+                    
+                    // 首先按组分类
+                    cloudData.features.forEach(cloud => {
+                        const group = cloud.properties.group;
+                        if (!groups[group]) {
+                            groups[group] = {
+                                features: [],
+                                speed: cloud.properties.speed
+                            };
+                        }
+                        groups[group].features.push(cloud);
+                    });
+                    
+                    // 然后按组移动
+                    Object.values(groups).forEach(group => {
+                        // 为每组生成一个随机的垂直偏移，减小垂直移动幅度
+                        const verticalOffset = (Math.random() - 0.5) * 0.000005 * deltaTime;
+                        
+                        group.features.forEach(cloud => {
+                            // 水平移动，减慢移动速度
+                            cloud.geometry.coordinates[0] += group.speed * (deltaTime / 32);
+                            
+                            // 轻微垂直移动，增加飘动感
+                            cloud.geometry.coordinates[1] += verticalOffset;
+                            
+                            // 如果云朵移出视图，将其移回左侧
+                            if (cloud.geometry.coordinates[0] > -73.85) {
+                                cloud.geometry.coordinates[0] = -74.05;
+                                cloud.geometry.coordinates[1] = 40.72 + (Math.random() * 0.05);
+                            }
+                        });
+                    });
+                    
+                    // 更新云朵数据
+                    map.getSource('clouds').setData(cloudData);
+                }
+                
+                // 继续动画，但减慢更新频率
+                setTimeout(() => {
+                    requestAnimationFrame(animate);
+                }, 50); // 添加50ms延迟，进一步减慢动画
+            }
+            
+            // 启动动画
+            requestAnimationFrame(animate);
+        }
+
+        // 切换历史模式
+        function toggleHistoricalMode(enable) {
+            isHistoricalMode = enable;
+            
+            // 更改地图样式
+            if (enable) {
+                // 切换到历史模式
+                document.getElementById('map').classList.add('sepia-filter');
+                document.getElementById('year-indicator').classList.remove('visible');
+                document.getElementById('year-indicator').innerHTML = 'Now viewing: <span>1900s - 2000s</span> Hunters Point';
+                document.getElementById('year-indicator').classList.add('visible');
+                
+                // 隐藏现代标记点
+                document.querySelectorAll('.marker-interview, .marker-residence, .marker-aeiou').forEach(el => {
+                    el.style.display = 'none';
+                });
+                
+                // 显示历史标记点
+                addHistoricalMarkers();
+                
+                // 隐藏现代路径
+                map.setLayoutProperty('route', 'visibility', 'none');
+                map.setLayoutProperty('route-arrows', 'visibility', 'none');
+                
+                // 更改地图颜色到复古风格
+                map.setPaintProperty('water', 'fill-color', '#b5c8d6');
+                map.setPaintProperty('parks', 'fill-color', '#b3c9a5');
+                
+                // 飞行到历史视角
+                map.flyTo({
+                    center: [-73.951, 40.743],
+                    zoom: 15,
+                    pitch: 45,
+                    bearing: 0,
+                    duration: 1500
+                });
+            } else {
+                // 切换回现代模式
+                document.getElementById('map').classList.remove('sepia-filter');
+                document.getElementById('year-indicator').classList.remove('visible');
+                
+                // 移除历史标记点
+                document.querySelectorAll('.marker-history').forEach(el => el.remove());
+                
+                // 显示现代标记点
+                document.querySelectorAll('.marker-interview, .marker-residence, .marker-aeiou').forEach(el => {
+                    el.style.display = 'block';
+                });
+                
+                // 恢复水域和公园颜色
+                map.setPaintProperty('water', 'fill-color', '#a0c8e0');
+                map.setPaintProperty('parks', 'fill-color', '#a1c371');
+                
+                // 显示路径（如果之前是开启的）
+                if (document.getElementById('toggle-paths').style.backgroundColor === 'white') {
+                    map.setLayoutProperty('route', 'visibility', 'visible');
+                    map.setLayoutProperty('route-arrows', 'visibility', 'visible');
+                }
+                
+                // 飞行到现代视角
+                map.flyTo({
+                    center: [-73.9575, 40.7425],
+                    zoom: 15.5,
+                    pitch: 60,
+                    bearing: -30,
+                    duration: 1500
+                });
+            }
+        }
+        
+        // 添加历史标记点
+        function addHistoricalMarkers() {
+            // 移除现有历史标记点
+            document.querySelectorAll('.marker-history').forEach(el => el.remove());
+            
+            // 添加历史标记点
+            historicalMarkers.forEach(marker => {
+                // 创建标记点元素
+                const el = document.createElement('div');
+                el.className = 'marker marker-history';
+                
+                // 创建标记点
+                const markerObj = new mapboxgl.Marker({
+                    element: el,
+                    anchor: 'bottom'
+                })
+                .setLngLat(marker.coordinates)
+                .addTo(map);
+                
+                // 添加点击事件
+                el.addEventListener('click', () => {
+                    showHistoricalInfoCard(marker);
+                });
+            });
+        }
+        
+        // 显示历史信息卡片
+        function showHistoricalInfoCard(marker) {
+            // 移除现有卡片和遮罩
+            removeHistoryCard();
+            
+            // 创建遮罩层
+            const overlay = document.createElement('div');
+            overlay.className = 'overlay';
+            document.body.appendChild(overlay);
+            
+            // 创建额外图片HTML
+            let additionalImagesHTML = '';
+            if (marker.additionalImages && marker.additionalImages.length > 0) {
+                additionalImagesHTML = '<div class="additional-images"><h3>Additional Historical Photos</h3><div class="image-gallery">';
+                marker.additionalImages.forEach((img, index) => {
+                    additionalImagesHTML += `
+                        <div class="gallery-item">
+                            <img src="${img}" alt="Historical Photo ${index + 2}">
+                        </div>
+                    `;
+                });
+                additionalImagesHTML += '</div></div>';
+            }
+            
+            // 创建历史信息卡片
+            const card = document.createElement('div');
+            card.className = 'history-card';
+            card.innerHTML = `
+                <button class="close-btn">&times;</button>
+                <h2>${marker.title}</h2>
+                <div class="image-comparison">
+                    <div class="image-container">
+                        <img src="${marker.historicImage}" alt="Historic View">
+                        <div class="image-label">1940s</div>
+                    </div>
+                    <div class="image-container">
+                        <img src="${marker.modernImage}" alt="Modern View">
+                        <div class="image-label">Today</div>
+                    </div>
+                </div>
+                <div class="history-description">
+                    ${marker.description}
+                </div>
+                ${additionalImagesHTML}
+                <div class="history-details">
+                    <p><strong>Address:</strong> ${marker.details.address}</p>
+                </div>
+            `;
+            document.body.appendChild(card);
+            
+            // 添加关闭按钮事件
+            card.querySelector('.close-btn').addEventListener('click', () => {
+                removeHistoryCard();
+            });
+            
+            // 添加遮罩点击事件
+            overlay.addEventListener('click', () => {
+                removeHistoryCard();
+            });
+            
+            // 飞行到标记点位置
+            map.flyTo({
+                center: marker.coordinates,
+                zoom: 17,
+                pitch: 60,
+                bearing: 0,
+                duration: 1000
+            });
+        }
+        
+        // 移除历史信息卡片
+        function removeHistoryCard() {
+            // 移除卡片
+            const card = document.querySelector('.history-card');
+            if (card) card.remove();
+            
+            // 移除遮罩
+            const overlay = document.querySelector('.overlay');
+            if (overlay) overlay.remove();
+        }
+        
+        // 显示时间信息
+        function showTimeInfo() {
+            const infoPanel = document.getElementById('info-panel');
+            infoPanel.innerHTML = `
+                <button id="close-info" class="close-btn">&times;</button>
+                <h2>About Time Travel</h2>
+                <p>The Time Travel feature allows you to explore Hunter's Point's rich history by comparing the neighborhood's past with its present.</p>
+                <div class="info-section">
+                    <h3>How to Use</h3>
+                    <ul>
+                        <li>Toggle the switch to travel between modern day and 1950s Hunter's Point</li>
+                        <li>In historical mode, brown markers indicate historical sites</li>
+                        <li>Click on any marker to see a comparison of how that location has changed over time</li>
+                    </ul>
+                </div>
+                <div class="info-section">
+                    <h3>Historical Context</h3>
+                    <p>In the 1950s, Hunter's Point was primarily an industrial area with factories, warehouses, and shipping facilities. The neighborhood has undergone dramatic transformation since then, evolving into the modern residential community we see today.</p>
+                </div>
+            `;
+            infoPanel.classList.add('active');
+            
+            // 重新添加关闭按钮事件
+            document.getElementById('close-info').addEventListener('click', () => {
+                infoPanel.classList.remove('active');
+            });
+        }
+    </script>
+</body>
+</html> 

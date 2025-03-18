@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>地图测试</title>
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+    <link href="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.css" rel="stylesheet">
+    <script src="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.js"></script>
+    <style>
+        body { margin: 0; padding: 0; }
+        #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+        .error-message {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 20px;
+            background: rgba(255, 0, 0, 0.7);
+            color: white;
+            z-index: 999;
+            text-align: center;
+        }
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 255, 255, 0.8);
+            padding: 20px;
+            border-radius: 5px;
+            z-index: 998;
+        }
+    </style>
+</head>
+<body>
+    <div id="map">
+        <div class="loading">加载地图中...</div>
+    </div>
+    <script>
+        // 显示错误信息的函数
+        function showError(message) {
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-message';
+            errorDiv.textContent = message;
+            document.body.appendChild(errorDiv);
+            
+            // 移除加载提示
+            const loading = document.querySelector('.loading');
+            if (loading) loading.remove();
+            
+            console.error(message);
+        }
+
+        // 移除加载提示的函数
+        function removeLoading() {
+            const loading = document.querySelector('.loading');
+            if (loading) loading.remove();
+        }
+
+        try {
+            // 检查浏览器支持
+            if (!mapboxgl.supported()) {
+                showError('您的浏览器不支持Mapbox GL');
+                throw new Error('浏览器不支持Mapbox GL');
+            }
+            
+            // 设置访问令牌
+            mapboxgl.accessToken = 'pk.eyJ1Ijoid3V5OTQyIiwiYSI6ImNtOGM3dmY0eTE5eTIya29lM2M3ZGp0OGQifQ.A1smKh10z0kscrowYa7fig';
+            
+            // 初始化地图
+            const map = new mapboxgl.Map({
+                container: 'map',
+                style: 'mapbox://styles/mapbox/streets-v12', // 使用公共样式
+                center: [-73.9565, 40.7441], // Hunters Point坐标
+                zoom: 14,
+                transformRequest: (url, resourceType) => {
+                    console.log('请求资源:', resourceType, url);
+                    return { url };
+                }
+            });
+            
+            // 添加导航控件
+            map.addControl(new mapboxgl.NavigationControl());
+            
+            // 错误处理
+            map.on('error', (e) => {
+                showError(`地图加载错误: ${e.error ? e.error.message : '未知错误'}`);
+                console.error('地图错误详情:', e);
+            });
+            
+            // 加载完成
+            map.on('load', () => {
+                console.log('地图加载成功');
+                removeLoading();
+                
+                // 添加一个简单的标记点
+                new mapboxgl.Marker()
+                    .setLngLat([-73.9565, 40.7441])
+                    .addTo(map);
+            });
+            
+            // 监听样式加载
+            map.on('style.load', () => {
+                console.log('地图样式加载成功');
+            });
+            
+            // 监听数据加载
+            map.on('data', (e) => {
+                console.log('数据加载:', e.dataType);
+            });
+            
+        } catch (error) {
+            showError(`初始化地图失败: ${error.message}`);
+            console.error('错误详情:', error);
+        }
+    </script>
+</body>
+</html> 

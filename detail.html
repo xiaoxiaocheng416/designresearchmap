@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>位置详情 - Hunters Point</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Base styles */
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Arial', sans-serif;
+            color: #333;
+            background-color: #f8f8f8;
+        }
+        
+        /* Page container */
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        /* Header styles */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 0;
+            border-bottom: 1px solid #eee;
+            margin-bottom: 30px;
+        }
+        
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            color: #666;
+            text-decoration: none;
+            font-size: 16px;
+            transition: color 0.3s;
+        }
+        
+        .back-btn:hover {
+            color: #1976D2;
+        }
+        
+        .back-btn i {
+            margin-right: 8px;
+        }
+        
+        /* Content area - vertical layout */
+        .content {
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+        }
+        
+        /* Image section */
+        .image-section {
+            width: 100%;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .main-image {
+            width: 100%;
+            height: 400px;
+            object-fit: cover;
+            display: block;
+        }
+        
+        /* Text section */
+        .info-section {
+            padding: 30px;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .location-title {
+            margin-top: 0;
+            font-size: 32px;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .location-address {
+            color: #666;
+            margin-bottom: 20px;
+            font-size: 16px;
+        }
+        
+        .tag {
+            display: inline-block;
+            padding: 5px 12px;
+            background-color: #f0f0f0;
+            color: #666;
+            border-radius: 20px;
+            margin-right: 8px;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        
+        .tag.residence {
+            background-color: #E3F2FD;
+            color: #1976D2;
+        }
+        
+        .description {
+            margin: 25px 0;
+            line-height: 1.7;
+        }
+        
+        .description p {
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+        
+        .description p:last-child {
+            margin-bottom: 0;
+        }
+        
+        /* Details and actions */
+        .details-actions-container {
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 30px;
+            margin-top: 30px;
+        }
+        
+        .details-list {
+            flex: 1;
+            min-width: 300px;
+        }
+        
+        .details-item {
+            margin-bottom: 15px;
+        }
+        
+        .details-label {
+            font-weight: bold;
+            margin-bottom: 5px;
+            display: block;
+            color: #1976D2;
+        }
+        
+        .details-value {
+            color: #666;
+        }
+        
+        /* Action buttons */
+        .actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: flex-start;
+        }
+        
+        .action-btn {
+            padding: 12px 24px;
+            background-color: #1976D2;
+            color: white;
+            border: none;
+            border-radius: 30px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+        }
+        
+        .action-btn:hover {
+            background-color: #1565C0;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .action-btn i {
+            margin-right: 8px;
+        }
+        
+        .action-btn.secondary {
+            background-color: #f0f0f0;
+            color: #666;
+        }
+        
+        .action-btn.secondary:hover {
+            background-color: #e0e0e0;
+        }
+        
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .details-actions-container {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <a href="mapbox-3d.html#skipintro" class="back-btn">
+                <i class="fas fa-arrow-left"></i> Back to Map
+            </a>
+            <h1>Hunters Point</h1>
+        </header>
+        
+        <div class="content" id="content">
+            <!-- Content will be loaded dynamically by JavaScript -->
+            <div class="loading">
+                <p>loading...</p>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Marker data (in a real application, this might be fetched from a server)
+        const markers = [
+            {
+                id: 'residence1',
+                type: 'residence',
+                title: 'My Home',
+                description: 'I used to live on the main street in LIC, where it was always noisy. At first, I actually enjoyed that "New York never sleeps" feeling, but gradually, I started having insomnia, tossing and turning night after night.\n\nI thought, maybe I should move somewhere by the river? It might be quieter there.\n\nI first checked out a few riverside spots in Manhattan, but they were either too expensive or too far from the subway. Then I looked at places along the New Jersey waterfront - great Manhattan views across the river, but I\'d have to rely on the constantly delayed PATH train.\n\nThen one day, a friend took me to Hunters Point in Long Island City. It was a beautiful sunny afternoon as we walked through the riverside park. On one side was the sparkling East River, with the Manhattan skyline across the water. We strolled along wooden boardwalks with wildflowers and grasses growing alongside. What stood out most were these huge loading cranes - massive, imposing steel structures that somehow blended perfectly with their surroundings.\n\nI thought this place was really unique, so I asked my friend why they hadn\'t torn down these big metal frames. She explained they were used for loading and unloading cargo. Later, as the industrial zone transformed into a residential area, the community decided to keep these cranes as historical landmarks.\n\nI thought that was pretty cool - not completely demolishing the old to build something new. Walking there, you could feel that this place had stories, had history.\n\nWhen I got home, I started looking up apartments in the area. I was surprised to find the transportation was actually quite convenient, with the 7 train getting to Manhattan quickly.\n\nSince moving here, I\'ve been sleeping much better, and I\'ve become curious about this neighborhood.\nWhy did it change from an industrial zone to what it is today? What stories lie behind these preserved industrial buildings and structures?\nThese questions led me to start researching the history and transformation of Hunters Point, which is why I created this project.',
+                coordinates: [-73.95694, 40.74500],
+                image: 'image/1.jpg',
+                details: {
+                    address: 'Hunters Point, Long Island City, NY'
+                }
+            }
+        ];
+        
+        // Execute after page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            // Get URL parameters
+            const urlParams = new URLSearchParams(window.location.search);
+            const markerId = urlParams.get('id');
+            
+            // Find matching marker data
+            const marker = markers.find(m => m.id === markerId);
+            
+            // If marker found, display details
+            if (marker) {
+                displayMarkerDetails(marker);
+                // Set page title
+                document.title = `${marker.title} - Hunters Point`;
+            } else {
+                // If no marker found, display error
+                displayError();
+            }
+        });
+        
+        // Display marker details
+        function displayMarkerDetails(marker) {
+            const contentElement = document.getElementById('content');
+            
+            // Format description with paragraph tags
+            const formattedDescription = marker.description.split('\n\n').map(paragraph => 
+                `<p>${paragraph.replace(/\n/g, '<br>')}</p>`
+            ).join('');
+            
+            // Build HTML content with vertical layout
+            const html = `
+                <div class="image-section">
+                    <img src="${marker.image}" alt="${marker.title}" class="main-image">
+                </div>
+                <div class="info-section">
+                    <h2 class="location-title">${marker.title}</h2>
+                    <p class="location-address">${marker.details.address}</p>
+                    
+                    <div class="tags">
+                        <span class="tag ${marker.type}">${marker.type === 'residence' ? 'Residence' : marker.type}</span>
+                    </div>
+                    
+                    <div class="description">
+                        ${formattedDescription}
+                    </div>
+                    
+                    <div class="actions" style="margin-top: 30px;">
+                        <button class="action-btn" onclick="window.open('https://maps.google.com/maps?q=${marker.coordinates[1]},${marker.coordinates[0]}', '_blank')">
+                            <i class="fas fa-map-marker-alt"></i> View in Google Maps
+                        </button>
+                        <button class="action-btn secondary" onclick="window.location.href='mapbox-3d.html#skipintro'">
+                            <i class="fas fa-arrow-left"></i> Return
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            // Update page content
+            contentElement.innerHTML = html;
+        }
+        
+        // Display error message
+        function displayError() {
+            const contentElement = document.getElementById('content');
+            
+            // Build error message HTML
+            const html = `
+                <div class="error-message" style="text-align: center; padding: 50px;">
+                    <i class="fas fa-exclamation-circle" style="font-size: 48px; color: #1976D2; margin-bottom: 20px;"></i>
+                    <h2>Location Not Found</h2>
+                    <p>Sorry, we could not find the location details you requested.</p>
+                    <a href="mapbox-3d.html" class="action-btn" style="display: inline-block; margin-top: 20px;">
+                        <i class="fas fa-arrow-left"></i> Back to Map
+                    </a>
+                </div>
+            `;
+            
+            // Update page content
+            contentElement.innerHTML = html;
+        }
+    </script>
+</body>
+</html> 
